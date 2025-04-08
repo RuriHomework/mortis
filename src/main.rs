@@ -1,7 +1,8 @@
 pub mod board;
-
-use board::{Board, PieceType, BOARD_HEIGHT, BOARD_WIDTH, FEATURES, ROTATIONS, WEIGHTS};
+pub mod piece;
+use board::{Board, BOARD_HEIGHT, BOARD_WIDTH, FEATURES, WEIGHTS};
 use cmaes::{CMAESOptions, DVector, Mode, PlotOptions};
+use piece::{PieceType, ROTATIONS};
 use rand::Rng;
 use std::env;
 use std::{thread, time::Duration};
