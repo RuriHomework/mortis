@@ -1,0 +1,9 @@
+[package]
+name = "tetris"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.97"
+cmaes = "0.2.2"
+rand = "0.9.0"
