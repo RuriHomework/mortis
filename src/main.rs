@@ -1,6 +1,6 @@
 pub mod board;
 pub mod piece;
-use board::{Board, BOARD_HEIGHT, BOARD_WIDTH, FEATURES, WEIGHTS};
+use board::{BOARD_HEIGHT, BOARD_WIDTH, Board, FEATURES, WEIGHTS};
 use cmaes::{CMAESOptions, DVector, Mode, PlotOptions};
 use piece::{PieceType, ROTATIONS};
 use rand::Rng;
@@ -25,7 +25,12 @@ fn main() {
             } else {
                 20
             };
-            train(generations);
+            let target = if args.len() > 3 {
+                args[3].parse().unwrap_or(1_000_000.0)
+            } else {
+                1_000_000.0
+            };
+            train(generations, target);
         }
         _ => {
             println!("Unknown command. Use 'preview' or 'train'");
@@ -33,8 +38,17 @@ fn main() {
     }
 }
 
-fn train(generations: i32) {
+fn train(generations: i32, target: f64) {
     println!("开始使用CMAES训练俄罗斯方块AI参数...");
+
+    let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let r = running.clone();
+    ctrlc::set_handler(move || {
+        println!("\n接收到Ctrl+C, 正在结束训练...");
+        r.store(false, std::sync::atomic::Ordering::SeqCst);
+    })
+    .expect("Error setting Ctrl+C handler");
+
     let objective_function = |weights: &DVector<f64>| {
         let mut weights_array = [0.0; FEATURES];
         for i in 0..FEATURES {
@@ -48,7 +62,7 @@ fn train(generations: i32) {
             }
         }
 
-        let num_games = 20;
+        let num_games = 48;
         let mut total_score = 0.0;
 
         for _ in 0..num_games {
@@ -62,10 +76,7 @@ fn train(generations: i32) {
     };
 
     let initial_weights = DVector::from_vec(vec![0.0; FEATURES]);
-
-    let initial_step_size = 1000.0;
-
-    println!("初始权重: {:?}", initial_weights);
+    let initial_step_size = 0.5;
 
     let mut cmaes_states = CMAESOptions::new(initial_weights, initial_step_size)
         .mode(Mode::Maximize)
@@ -77,21 +88,46 @@ fn train(generations: i32) {
         .unwrap();
 
     println!("正在运行CMAES优化, 总共{}代...", generations);
-    let result = cmaes_states.run_parallel();
 
-    cmaes_states
-        .get_plot()
-        .unwrap()
-        .save_to_file("plot.png", true)
-        .unwrap();
+    'main: loop {
+        let result = loop {
+            if let Some(data) = cmaes_states.next_parallel() {
+                break data;
+            }
 
-    println!("优化完成！");
+            if !running.load(std::sync::atomic::Ordering::SeqCst) {
+                print_results(&cmaes_states.overall_best_individual().unwrap());
+                break 'main;
+            }
+        };
+
+        if !running.load(std::sync::atomic::Ordering::SeqCst) {
+            print_results(&cmaes_states.overall_best_individual().unwrap());
+            break 'main;
+        }
+
+        if let Some(ref best) = result.overall_best {
+            if best.value > target {
+                cmaes_states
+                    .get_plot()
+                    .unwrap()
+                    .save_to_file("plot.png", true)
+                    .unwrap();
+
+                println!("优化完成！");
+                print_results(&result.current_best.unwrap());
+                break 'main;
+            }
+        };
+    }
+}
+
+fn print_results(best: &cmaes::Individual) {
     println!("最佳权重:");
-    for (i, &w) in result.current_best.unwrap().point.iter().enumerate() {
+    for (i, &w) in best.point.iter().enumerate() {
         println!("权重 {}: {:.6}", i, w);
     }
 
-    let best = result.overall_best.unwrap();
     println!("最佳分数: {:.2}", best.value);
 
     println!("最佳权重数组形式:");
@@ -102,14 +138,14 @@ fn train(generations: i32) {
         }
         print!("{:.6}", w);
     }
-    println!("],");
+    println!("]");
 }
 
 fn simulate_game(weights: &[f64; FEATURES]) -> i32 {
     let mut board = Board::new();
     let mut rng = rand::rng();
 
-    let num_pieces = 25_000;
+    let num_pieces = 1_000_000;
 
     for _ in 0..num_pieces {
         let piece_type = match rng.random_range(0..7) {
@@ -157,20 +193,14 @@ fn preview() {
     let mut rng = rand::rng();
     let piece_symbols = ['I', 'T', 'O', 'J', 'L', 'S', 'Z'];
     let piece_colors = [
-        "\x1B[36m",
-        "\x1B[35m",
-        "\x1B[33m",
-        "\x1B[34m",
-        "\x1B[31m",
-        "\x1B[32m",
-        "\x1B[91m",
+        "\x1B[36m", "\x1B[35m", "\x1B[33m", "\x1B[34m", "\x1B[31m", "\x1B[32m", "\x1B[91m",
     ];
 
     println!("Tetris AI Preview (按Ctrl+C退出)");
-    
+
     let mut current_piece_type = get_random_piece(&mut rng);
     let mut next_piece_type = get_random_piece(&mut rng);
-    
+
     loop {
         let mut possible_actions = Vec::new();
         for rotate in 0..4 {
@@ -200,17 +230,23 @@ fn preview() {
             .unwrap();
 
         print!("\x1B[2J\x1B[1;1H");
-        
+
         println!("╔══════════════════════════════════════╗");
         println!("║ Tetris AI Preview - Score: {:<9} ║", board.get_score());
         println!("╚══════════════════════════════════════╝");
-        
-        display_game_with_next_piece(&board, current_piece_type, next_piece_type, best_action, 
-                                    piece_symbols, piece_colors);
-        
+
+        display_game_with_next_piece(
+            &board,
+            current_piece_type,
+            next_piece_type,
+            best_action,
+            piece_symbols,
+            piece_colors,
+        );
+
         current_piece_type = next_piece_type;
         next_piece_type = get_random_piece(&mut rng);
-        
+
         thread::sleep(Duration::from_millis(100));
     }
 }
@@ -233,19 +269,19 @@ fn display_game_with_next_piece(
     next_piece: PieceType,
     best_action: (usize, usize, f64),
     piece_symbols: [char; 7],
-    piece_colors: [&str; 7]
+    piece_colors: [&str; 7],
 ) {
     let grid = board.get_grid();
     let color_grid = board.get_color_grid();
-    
+
     let next_piece_shape = &ROTATIONS[next_piece as usize][0];
     let next_piece_color = piece_colors[next_piece as usize];
-    
+
     let mut next_preview = [[false; 4]; 4];
-    
+
     let offset_x = (4 - next_piece_shape.width) / 2;
     let offset_y = 1;
-    
+
     for y in 0..next_piece_shape.height {
         for x in 0..next_piece_shape.width {
             if y + offset_y < 4 && x + offset_x < 4 && next_piece_shape.shape[y][x] != 0 {
@@ -253,22 +289,16 @@ fn display_game_with_next_piece(
             }
         }
     }
-    
+
     println!("╔{}╗    ╔══════╗", "═".repeat(BOARD_WIDTH));
-    
-    println!(
-        "║{}║    ║ NEXT ║", 
-        " ".repeat(BOARD_WIDTH)
-    );
-    
-    println!(
-        "║{}║    ╠══════╣", 
-        " ".repeat(BOARD_WIDTH)
-    );
-    
+
+    println!("║{}║    ║ NEXT ║", " ".repeat(BOARD_WIDTH));
+
+    println!("║{}║    ╠══════╣", " ".repeat(BOARD_WIDTH));
+
     for y in (0..BOARD_HEIGHT).rev() {
         print!("║");
-        
+
         for x in 0..BOARD_WIDTH {
             if grid[y][x] {
                 let color_index = color_grid[y][x].unwrap_or(0) as usize;
@@ -282,11 +312,11 @@ fn display_game_with_next_piece(
                 print!(" ");
             }
         }
-        
+
         let preview_row = BOARD_HEIGHT - y - 1;
         if preview_row < 6 {
             print!("║    ║ ");
-            
+
             if preview_row >= 1 && preview_row <= 4 {
                 let row_idx = preview_row - 1;
                 for col in 0..4 {
@@ -299,23 +329,23 @@ fn display_game_with_next_piece(
             } else {
                 print!("    ");
             }
-            
+
             print!(" ║");
         } else {
             print!("║    ║      ║");
         }
-        
+
         println!();
     }
-    
+
     println!("╚{}╝    ╚══════╝", "═".repeat(BOARD_WIDTH));
-    
+
     println!(
-        "当前: {}{}{}(旋转: {}, 位置: {})", 
+        "当前: {}{}{}(旋转: {}, 位置: {})",
         piece_colors[current_piece as usize],
         piece_symbols[current_piece as usize],
         "\x1B[0m",
-        best_action.0, 
+        best_action.0,
         best_action.1
     );
 }
