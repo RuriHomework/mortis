@@ -6,19 +6,19 @@ pub const BOARD_WIDTH: usize = 10;
 pub const FEATURES: usize = 13;
 
 pub static WEIGHTS: [f64; FEATURES] = [
-    148226.044742,
-    -235469.293532,
-    227818.466659,
-    28075.637356,
-    -151691.585200,
-    168940.778157,
-    -924.939634,
-    902941.598550,
-    -81899.099075,
-    229232.505421,
-    196865.056503,
-    19932.300712,
-    185679.872248,
+    1464772.166456,
+    -2535297.130013,
+    2638462.645342,
+    372351.515440,
+    -1782742.689903,
+    1883234.918781,
+    -4420.968667,
+    9988776.620538,
+    -948594.666888,
+    -3610431.536749,
+    3355542.370633,
+    1120426.582938,
+    3233372.471683,
 ];
 
 pub struct Board {
@@ -299,6 +299,59 @@ impl Board {
         }
 
         Some((cleared, features))
+    }
+
+    pub fn check(
+        &self,
+        piece_type: PieceType,
+        x: usize,
+        rotate: usize,
+    ) -> Result<(), &'static str> {
+        let piece = &ROTATIONS[piece_type as usize][rotate];
+
+        // Check x boundaries
+        if x + piece.width > BOARD_WIDTH {
+            return Err("Piece out of bounds");
+        }
+
+        // Calculate required y position
+        let mut required_y = 0;
+        for dx in 0..piece.width {
+            let col = x + dx;
+            let h_col = self.heights[col];
+            let mut max_i_for_dx = 0;
+            let mut has_block = false;
+
+            for i in 0..piece.height {
+                if piece.shape[i][dx] != 0 {
+                    has_block = true;
+                    let current_required_y = h_col as i32 - i as i32;
+                    if current_required_y > max_i_for_dx {
+                        max_i_for_dx = current_required_y;
+                    }
+                }
+            }
+
+            if has_block && max_i_for_dx > required_y {
+                required_y = max_i_for_dx;
+            }
+        }
+        let required_y = required_y as usize;
+
+        // Check if piece fits
+        for i in 0..piece.height {
+            for j in 0..piece.width {
+                if piece.shape[i][j] != 0 {
+                    let y = required_y + i;
+                    let col = x + j;
+                    if y >= BOARD_HEIGHT || self.grid[y][col] {
+                        return Err("Piece doesn't fit");
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     pub fn apply(
