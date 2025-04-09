@@ -3,23 +3,22 @@ use anyhow::Result;
 use crate::piece::{PieceType, ROTATIONS};
 pub const BOARD_HEIGHT: usize = 15;
 pub const BOARD_WIDTH: usize = 10;
-pub const FEATURES: usize = 14;
+pub const FEATURES: usize = 13;
 
 pub static WEIGHTS: [f64; FEATURES] = [
-    71988334246.269165,
-    -77771804147.929123,
-    163820373679.528564,
-    64936006918.432037,
-    -187649194885.821838,
-    118347342588.140656,
-    618281769.952347,
-    543105110206.627075,
-    -32512118179.327072,
-    8586314263.743945,
-    247259959108.680023,
-    8818293972.765467,
-    -103076919529.717133,
-    509659688.031418,
+    148226.044742,
+    -235469.293532,
+    227818.466659,
+    28075.637356,
+    -151691.585200,
+    168940.778157,
+    -924.939634,
+    902941.598550,
+    -81899.099075,
+    229232.505421,
+    196865.056503,
+    19932.300712,
+    185679.872248,
 ];
 
 pub struct Board {
@@ -294,8 +293,8 @@ impl Board {
         let c =
             (0..BOARD_WIDTH).map(|i| temp_heights[i]).sum::<usize>() as f64 / BOARD_WIDTH as f64;
         let h = BOARD_HEIGHT as f64;
-        for i in 0..5 {
-            let term = c - (i as f64 * h / 4.0);
+        for i in 0..4 {
+            let term = c - (i as f64 * h / 3.0);
             features[9 + i] = (-term.powi(2) / (2.0 * (h / 5.0).powi(2))).exp();
         }
 
