@@ -8,61 +8,35 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  BINARY_NAME: tetris
+  BINARY_NAME: mortis
 
 jobs:
   build:
-    name: Build and Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-      
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-
-  build-release:
     name: Build Release ${{ matrix.os }}
-    needs: build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
-            asset_name: tetris-linux
-            target: x86_64-unknown-linux-gnu
+            asset_name: mortis-linux
+            target: x86_64-unknown-linux-musl
           - os: windows-latest
-            asset_name: tetris-windows.exe
+            asset_name: mortis-windows.exe
             target: x86_64-pc-windows-msvc
           - os: macos-latest
-            asset_name: tetris-macos
-            target: x86_64-apple-darwin
+            asset_name: mortis-macos
+            target: aarch64-apple-darwin
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+        
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install fontconfig
       
       - name: Setup Rust
         uses: actions-rs/toolchain@v1
@@ -90,18 +64,18 @@ jobs:
           cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}.exe ${{ matrix.asset_name }}
           
       - name: Upload binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}
 
   create-release:
     name: Create Release
-    needs: build-release
+    needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
       
       - name: Create Release
         id: create_release
@@ -110,9 +84,9 @@ jobs:
           name: Release ${{ github.sha }}
           tag_name: v${{ github.run_number }}
           files: |
-            tetris-linux
-            tetris-windows.exe
-            tetris-macos
+            mortis-linux
+            mortis-windows.exe
+            mortis-macos
           draft: false
           prerelease: false
         env:
