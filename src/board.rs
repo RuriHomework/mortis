@@ -28,6 +28,12 @@ pub struct Board {
     pub score: i32,
 }
 
+impl Default for Board {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Board {
     pub fn new() -> Self {
         Board {
@@ -107,8 +113,8 @@ impl Board {
         }
 
         // Create temporary grid and heights
-        let mut temp_grid = self.grid.clone();
-        let mut temp_heights = self.heights.clone();
+        let mut temp_grid = self.grid;
+        let mut temp_heights = self.heights;
 
         // Place the piece
         let mut max_h = 0;

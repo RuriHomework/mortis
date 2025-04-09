@@ -1,4 +1,3 @@
-
 #[rustfmt::skip]
 pub const ROTATIONS: [[Piece; 4]; 7] = [
     // I
