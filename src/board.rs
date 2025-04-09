@@ -1,19 +1,19 @@
 use anyhow::Result;
 
 use crate::piece::{PieceType, ROTATIONS};
-pub const BOARD_HEIGHT: usize = 20;
+pub const BOARD_HEIGHT: usize = 15;
 pub const BOARD_WIDTH: usize = 10;
 pub const FEATURES: usize = 8;
 
 pub static WEIGHTS: [f64; FEATURES] = [
-    544716.817000,
-    -669214.551117,
-    644915.571718,
-    208206.731645,
-    -208141.975152,
-    179552.342995,
-    -48459.934313,
-    3125846.717310,
+    591644.060358,
+    -3043135.944814,
+    1350308.152718,
+    370807.391766,
+    -1249156.469627,
+    618386.970303,
+    8539.627537,
+    6948375.378076,
 ];
 
 pub struct Board {

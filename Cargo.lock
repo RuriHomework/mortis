@@ -434,6 +434,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mortis"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cmaes",
+ "rand 0.9.0",
+]
+
+[[package]]
 name = "nalgebra"
 version = "0.33.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -825,15 +834,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "tetris"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cmaes",
- "rand 0.9.0",
 ]
 
 [[package]]
