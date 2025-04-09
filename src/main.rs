@@ -38,7 +38,7 @@ fn main() {
     }
 }
 
-fn train(generations: i32, target: f64) {
+fn train(generations: usize, target: f64) {
     println!("开始使用CMAES训练俄罗斯方块AI参数...");
 
     let running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
@@ -62,7 +62,7 @@ fn train(generations: i32, target: f64) {
             }
         }
 
-        let num_games = 48;
+        let num_games = 20;
         let mut total_score = 0.0;
 
         for _ in 0..num_games {
@@ -76,12 +76,14 @@ fn train(generations: i32, target: f64) {
     };
 
     let initial_weights = DVector::from_vec(vec![0.0; FEATURES]);
+    // let initial_weights = WEIGHTS.to_vec();
     let initial_step_size = 0.5;
 
     let mut cmaes_states = CMAESOptions::new(initial_weights, initial_step_size)
         .mode(Mode::Maximize)
-        .max_generations(generations as usize)
-        .population_size(200)
+        .max_generations(generations)
+        .weights(cmaes::Weights::Negative)
+        .population_size(240)
         .enable_plot(PlotOptions::new(0, false))
         .enable_printing(50)
         .build(objective_function)
@@ -96,13 +98,37 @@ fn train(generations: i32, target: f64) {
             }
 
             if !running.load(std::sync::atomic::Ordering::SeqCst) {
-                print_results(&cmaes_states.overall_best_individual().unwrap());
+                cmaes_states
+                    .get_plot()
+                    .unwrap()
+                    .save_to_file("plot.png", true)
+                    .unwrap();
+                println!("优化完成！");
+                print_results(&cmaes_states.current_best_individual().unwrap());
                 break 'main;
             }
         };
 
         if !running.load(std::sync::atomic::Ordering::SeqCst) {
-            print_results(&cmaes_states.overall_best_individual().unwrap());
+            cmaes_states
+                .get_plot()
+                .unwrap()
+                .save_to_file("plot.png", true)
+                .unwrap();
+            println!("优化完成！");
+            print_results(&cmaes_states.current_best_individual().unwrap());
+            break 'main;
+        }
+
+        if cmaes_states.generation() > generations {
+            cmaes_states
+                .get_plot()
+                .unwrap()
+                .save_to_file("plot.png", true)
+                .unwrap();
+
+            println!("优化完成！");
+            print_results(&result.current_best.unwrap());
             break 'main;
         }
 
@@ -123,11 +149,6 @@ fn train(generations: i32, target: f64) {
 }
 
 fn print_results(best: &cmaes::Individual) {
-    println!("最佳权重:");
-    for (i, &w) in best.point.iter().enumerate() {
-        println!("权重 {}: {:.6}", i, w);
-    }
-
     println!("最佳分数: {:.2}", best.value);
 
     println!("最佳权重数组形式:");
@@ -247,7 +268,7 @@ fn preview() {
         current_piece_type = next_piece_type;
         next_piece_type = get_random_piece(&mut rng);
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(10));
     }
 }
 
@@ -291,10 +312,11 @@ fn display_game_with_next_piece(
     }
 
     println!("╔{}╗    ╔══════╗", "═".repeat(BOARD_WIDTH));
-
     println!("║{}║    ║ NEXT ║", " ".repeat(BOARD_WIDTH));
-
     println!("║{}║    ╠══════╣", " ".repeat(BOARD_WIDTH));
+    println!("║{}║    ║      ║", " ".repeat(BOARD_WIDTH));
+    println!("║{}║    ║      ║", " ".repeat(BOARD_WIDTH));
+    println!("║{}║    ║      ║", " ".repeat(BOARD_WIDTH));
 
     for y in (0..BOARD_HEIGHT).rev() {
         print!("║");

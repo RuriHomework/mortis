@@ -3,17 +3,23 @@ use anyhow::Result;
 use crate::piece::{PieceType, ROTATIONS};
 pub const BOARD_HEIGHT: usize = 15;
 pub const BOARD_WIDTH: usize = 10;
-pub const FEATURES: usize = 8;
+pub const FEATURES: usize = 14;
 
 pub static WEIGHTS: [f64; FEATURES] = [
-    591644.060358,
-    -3043135.944814,
-    1350308.152718,
-    370807.391766,
-    -1249156.469627,
-    618386.970303,
-    8539.627537,
-    6948375.378076,
+    2260.941037,
+    -674.292394,
+    5783.633501,
+    3841.555686,
+    -8359.672623,
+    3012.952169,
+    -45.898465,
+    9035.878374,
+    -329.987647,
+    4115.080265,
+    6624.827573,
+    1908.446543,
+    -4991.643696,
+    -472.915246,
 ];
 
 pub struct Board {
@@ -274,6 +280,24 @@ impl Board {
             }
         }
         features[7] = rows_with_holes as f64;
+
+        // 9. diversity
+        let mut diversity = 0;
+        let mut prev_h = temp_heights[0];
+        for x in 1..BOARD_WIDTH {
+            diversity += ((temp_heights[x] - prev_h) as i32).abs();
+            prev_h = temp_heights[x];
+        }
+        features[8] = diversity as f64;
+
+        // 10. RFB
+        let c =
+            (0..BOARD_WIDTH).map(|i| temp_heights[i]).sum::<usize>() as f64 / BOARD_WIDTH as f64;
+        let h = BOARD_HEIGHT as f64;
+        for i in 0..5 {
+            let term = c - (i as f64 * h / 4.0);
+            features[9 + i] = (term.powi(2) / (2.0 * (h / 5.0).powi(2))).exp();
+        }
 
         Some((cleared, features))
     }
