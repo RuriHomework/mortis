@@ -19,7 +19,7 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: mortis-linux
-            target: x86_64-unknown-linux-musl
+            target: x86_64-unknown-linux-gnu
           - os: windows-latest
             asset_name: mortis-windows.exe
             target: x86_64-pc-windows-msvc
