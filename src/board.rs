@@ -290,7 +290,7 @@ impl Board {
         let mut diversity = 0;
         let mut prev_h = temp_heights[0];
         for x in 1..BOARD_WIDTH {
-            diversity += ((temp_heights[x] - prev_h) as i32).abs();
+            diversity += (temp_heights[x] as i32 - prev_h as i32).abs();
             prev_h = temp_heights[x];
         }
         features[8] = diversity as f64;

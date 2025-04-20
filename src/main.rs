@@ -82,8 +82,6 @@ fn train(generations: usize, target: f64) {
             total_score += score as f64;
         }
 
-        
-
         total_score / num_games as f64
     };
 
