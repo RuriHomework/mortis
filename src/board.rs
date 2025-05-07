@@ -178,7 +178,16 @@ impl Board {
                 eroded += 1;
             }
         }
-        features[1] = (eroded * cleared) as f64;
+        
+        let eroded_value = match cleared {
+            1 => eroded * 100,
+            2 => eroded * 150,  // 300 / 2 = 150
+            3 => eroded * 166,  // 500 / 3 ≈ 166
+            4 => eroded * 200,  // 800 / 4 = 200
+            _ => 0,
+        };
+        
+        features[1] = eroded_value as f64;
 
         // 3. row_transitions (row transitions)
         let mut row_trans = 0;
