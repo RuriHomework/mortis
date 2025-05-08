@@ -6,6 +6,8 @@ use piece::{PieceType, ROTATIONS};
 use rand::Rng;
 use rand::seq::IndexedRandom;
 use std::env;
+use std::process::exit;
+use std::thread::sleep;
 use std::{thread, time::Duration};
 
 fn main() {
@@ -234,6 +236,8 @@ fn preview() {
     let mut current_piece_type = get_random_piece(&mut rng);
     let mut next_piece_type = get_random_piece(&mut rng);
 
+    let mut last_score = 0;
+
     loop {
         let mut possible_actions = Vec::new();
         for rotate in 0..4 {
@@ -262,10 +266,12 @@ fn preview() {
             .apply(current_piece_type, best_action.1, best_action.0)
             .unwrap();
 
-        print!("\x1B[2J\x1B[1;1H");
+        // print!("\x1B[2J\x1B[1;1H");
+
+        let score = board.get_score();
 
         println!("╔══════════════════════════════════════╗");
-        println!("║ Tetris AI Preview - Score: {:<9} ║", board.get_score());
+        println!("║ Tetris AI Preview - Score: {:<9} ║", score);
         println!("╚══════════════════════════════════════╝");
 
         display_game_with_next_piece(
@@ -280,7 +286,12 @@ fn preview() {
         current_piece_type = next_piece_type;
         next_piece_type = get_random_piece(&mut rng);
 
-        thread::sleep(Duration::from_millis(10));
+        if score - last_score > 100 {
+            exit(0);
+        }
+        last_score = score;
+
+        thread::sleep(Duration::from_millis(100));
     }
 }
 
@@ -386,6 +397,7 @@ fn display_game_with_next_piece(
 fn check(executable_path: String) {
     use std::io::{BufRead, BufReader, Write};
     use std::process::{Command, Stdio};
+    let start_time = std::time::Instant::now();
 
     let mut child = Command::new(&executable_path)
         .stdin(Stdio::piped())
@@ -407,7 +419,7 @@ fn check(executable_path: String) {
         pieces.push(*piece_types.choose(&mut rng).unwrap());
     }
 
-    let initial_input = format!("{} {}\n", pieces[0], pieces[1]);
+    let initial_input = format!("{}{}\n", pieces[0], pieces[1]);
     stdin
         .write_all(initial_input.as_bytes())
         .expect("写入初始输入失败");
@@ -443,6 +455,8 @@ fn check(executable_path: String) {
             }
         };
 
+        println!("{}", response);
+
         let parts: Vec<&str> = response.split_whitespace().collect();
         if parts.len() < 2 {
             println!("程序输出格式错误: {}", response);
@@ -451,7 +465,7 @@ fn check(executable_path: String) {
 
         let rotation_degrees = parts[0].parse::<usize>().unwrap_or(0);
         let x_position = parts[1].parse::<usize>().unwrap_or(0);
-        let rotation = rotation_degrees / 90;
+        let rotation = rotation_degrees;
 
         // 从目标程序读取当前分数
         let score_line = match stdout_lines.next() {
@@ -482,6 +496,19 @@ fn check(executable_path: String) {
             current_idx += 1;
             next_idx += 1;
 
+            let now = std::time::Instant::now();
+            let elapsed = now.duration_since(start_time);
+            if elapsed.as_secs_f64() > 10.0 {
+                let pieces_per_second = current_idx as f64 / elapsed.as_secs_f64();
+                println!(
+                    "当前放置了 {} 个方块，平均速度: {:.2} 个方块/秒",
+                    current_idx, pieces_per_second
+                );
+                println!("正在发送结束标记...");
+                stdin.write_all(b"E\n").expect("写入下一方块失败");
+                stdin.flush().expect("刷新stdin失败");
+            }
+
             if next_idx < pieces.len() {
                 if let Err(e) = stdin.write_all(format!("{}\n", pieces[next_idx]).as_bytes()) {
                     println!("写入下一方块失败: {}", e);
@@ -495,7 +522,7 @@ fn check(executable_path: String) {
                     break;
                 }
             } else {
-                if let Err(e) = stdin.write_all(b"X\n") {
+                if let Err(e) = stdin.write_all(b"E\n") {
                     println!("写入结束标记失败: {}", e);
                     break;
                 }
@@ -512,9 +539,14 @@ fn check(executable_path: String) {
                 "警告: 程序选择了无效的行动 (旋转={}, 位置={})",
                 rotation, x_position
             );
+            stdin.write_all(b"E\n").expect("写入结束标记失败");
+            println!("已发送游戏结束标记");
             break;
         }
     }
+
+    sleep(Duration::from_secs(1));
+    println!("正在检查目标程序状态...");
 
     match child.try_wait() {
         Ok(Some(status)) => println!("目标程序已退出，状态码: {}", status),
