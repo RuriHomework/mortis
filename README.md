@@ -1,6 +1,8 @@
 # Mortis
 
-BUPT 2025 计算导论与程序设计课程设计 俄罗斯方块 训练相关代码
+BUPT 2024 计算导论与程序设计课程设计 俄罗斯方块 训练相关代码
+
+与 [Tetris](https://github.com/RuriHomework/Tetris) 配套使用
 
 ## features
 
